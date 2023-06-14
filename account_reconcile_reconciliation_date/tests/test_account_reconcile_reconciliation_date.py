@@ -25,12 +25,13 @@ class TestAccountReconcileReconciliationDate(AccountTestInvoicingCommon):
         self.partner_china_exp = self.env.ref("base.res_partner_3")
         self.currency_chf_id = self.env.ref("base.CHF").id
         self.currency_usd_id = self.env.ref("base.USD").id
-        self.currency_eur_id = self.env.ref("base.EUR").id
+        self.currency_eur_rec = self.env.ref("base.EUR")
+        self.currency_eur_rec.active = True
 
         company = self.env.ref("base.main_company")
         self.cr.execute(
             "UPDATE res_company SET currency_id = %s WHERE id = %s",
-            [self.currency_eur_id, company.id],
+            [self.currency_eur_rec.id, company.id],
         )
         self.product = self.env.ref("product.product_product_4")
         self.payment_method_manual_in = self.env.ref(
@@ -114,7 +115,7 @@ class TestAccountReconcileReconciliationDate(AccountTestInvoicingCommon):
         invoice = self.invoice_model.create(
             {
                 "partner_id": partner or self.partner_agrolait.id,
-                "currency_id": currency_id or self.currency_eur_id,
+                "currency_id": currency_id or self.currency_eur_rec.id,
                 "journal_id": self.journal_id.id,
                 "move_type": move_type,
                 "invoice_date": time.strftime("%Y") + "-06-26",
@@ -167,21 +168,21 @@ class TestAccountReconcileReconciliationDate(AccountTestInvoicingCommon):
             post it and reconcile it with a bank statement """
         inv_1 = self.create_invoice(
             amount=100,
-            currency_id=self.currency_eur_id,
+            currency_id=self.currency_eur_rec.id,
             partner=self.partner_agrolait.id,
         )
         inv_2 = self.create_invoice(
             amount=200,
-            currency_id=self.currency_eur_id,
+            currency_id=self.currency_eur_rec.id,
             partner=self.partner_agrolait.id,
         )
 
         ctx = {"active_model": "account.move", "active_ids": [inv_1.id, inv_2.id]}
-        register_payments = self.register_payments_model.with_context(ctx).create(
+        register_payments = self.register_payments_model.with_context(**ctx).create(
             {
                 "payment_date": time.strftime("%Y") + "-07-15",
                 "journal_id": self.bank_journal_euro.id,
-                "payment_method_id": self.payment_method_manual_in.id,
+                "payment_method_line_id": self.payment_method_manual_in.id,
             }
         )
         register_payments.flush()
